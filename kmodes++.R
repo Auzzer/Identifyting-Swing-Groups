@@ -1,12 +1,71 @@
-library(nnet)
-library(stringr)
-data = read.table("./soybean-small.txt", sep=",")
-X = data[,1:35]
-Y = data[,36]
-Y <- str_replace(Y, "D","")
-YReal = Y
-Y = gsub("4", "1", Y )
-X = onehot(X)
+require(nnet)
+require(stringr)
+
+CH<-function(cl, X){
+  p = dim(X)[2]
+  
+  clNum = length(names(table(cl))) # number of clusterings
+  container = matrix(0, clNum, 2) 
+  # for each item in list, corresponding MSA and MSE to cl is included, eg list[[1]] includes MSA and MSE of cl 1  
+  ## calulate center of each clustering
+  center = matrix(0, clNum, p)
+  class = c(as.numeric(names(table(cl))))
+  i=1
+  for(item in class){
+    idx = which(cl == item)
+    temp = as.matrix(X[idx ,])
+    center[i, ] = as.vector(apply(temp, 2, getmode))
+    i=i+1
+  }
+  
+  ## calculate the SSA & SSE of each clustering and then save them in the matrix where the first col is SSA and the second col is SSE
+  i=1
+  for(item in class){
+    idx = which(cl == item)
+    temp = as.matrix(X[idx ,]) 
+    
+    SSA =  sum(apply(center, 1, itemDis, center[i, ]))/(clNum-1)# sum of squares between groups
+    SSE = sum(apply(temp, 1, itemDis, center[i, ]))/ dim(temp)[1]# sum of squares within groups
+    container[i,]  = c(SSA, SSE)
+    i=i+1
+  }
+  CH = ( sum(container[,1])/ sum(container[,2]) ) - log(clNum)
+  return(CH)
+}
+
+IC<-function(cl, X){
+  p = dim(X)[2]
+  
+  clNum = length(names(table(cl))) # number of clusterings
+  container = matrix(0, clNum, 2) 
+  # for each item in list, corresponding MSA and MSE to cl is included, eg list[[1]] includes MSA and MSE of cl 1  
+  ## calulate center of each clustering
+  center = matrix(0, clNum, p)
+  class = c(as.numeric(names(table(cl))))
+  
+  i=1
+  for(item in class){
+    idx = which(cl == item)
+    temp = as.matrix(X[idx ,])
+    center[i, ] = as.vector(apply(temp, 2, getmode))
+    i=i+1
+  }
+  
+  ## calculate the SSA & SSE of each clustering and then save them in the matrix where the first col is SSA and the second col is SSE
+  i=1
+  for(item in class){
+    idx = which(cl == item)
+    temp = as.matrix(X[idx ,]) 
+    
+    SSA =  sum(apply(center, 1, itemDis, center[i, ]))/(clNum-1)# sum of squares between groups
+    SSE = sum(apply(temp, 1, itemDis, center[i, ]))/ dim(temp)[1]# sum of squares within groups
+    container[i,]  = c(SSA, SSE)
+    i=i+1
+  }
+  ic = 2*p - ( sum(container[,1])/ sum(container[,2]) )
+  return(ic)
+}
+
 itemDis<-function(a, b){
   return(sum(abs(a-b)))
 }
@@ -67,7 +126,7 @@ kmodespp<-function(X, Y, kNew, max_iter=1000){
     center[i, ] = as.numeric(X[idx, ])
   }
   
-  # process of kmodes
+  # process of kmodes++
   iter = 1
   
   repeat{
@@ -82,7 +141,7 @@ kmodespp<-function(X, Y, kNew, max_iter=1000){
     for(j in 1:dim(center)[1]){
       newcenter[j, ] = as.numeric(apply(clX[clX$cl == j,], 2, mean)[2:(dim(center)[2]+1)])
     }
-    for(j in 1:dim(center)[1]){eps = eps + sum(abs(newcenter[j, ]-center[j, ]))} #这里可能存在一个问题，如果第一次分类就成功的话，就会导致这类中心没有更新
+    for(j in 1:dim(center)[1]){eps = eps + sum(abs(newcenter[j, ]-center[j, ]))} 
     eps = eps/dim(center)[1]
     center = newcenter # renew center
     iter = iter+1
@@ -100,8 +159,9 @@ chooseK<-function(X, Y, maxiter = 1000){
   Res = matrix(0, (p-NumY), n)
   for(kNew in 1:(p-NumY)){
     Res[kNew, ]=kmodespp(X,Y, kNew = kNew)
-    for(j in 1:n){
-      
+    for(i in 1:n){
+      clnow = Res[kNew, j]
+      for(j in 1:kNew+NumY){}
     }
   }
 }
