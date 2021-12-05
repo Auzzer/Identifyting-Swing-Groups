@@ -125,7 +125,7 @@ kmodespp<-function(X, Y, kNew, max_iter=1000){
     idx = order(apply(DisMatrix, 2, sum), decreasing = FALSE)[ceiling(0.75*length(DisMatrix[i,]))]
     center[i, ] = as.numeric(X[idx, ])
   }
-  
+                     
   # process of kmodes++
   iter = 1
   
@@ -153,23 +153,78 @@ kmodespp<-function(X, Y, kNew, max_iter=1000){
 
 
 chooseK<-function(X, Y, maxiter = 1000){
+  # choose the value of k by CH defined above
   p = dim(X)[2] # num of variabels
   NumY = length(unique(Y))
   n = dim(X)[1]
   Res = matrix(0, (p-NumY), n)
   for(kNew in 1:(p-NumY)){
     Res[kNew, ]=kmodespp(X,Y, kNew = kNew)
-    for(i in 1:n){
-      clnow = Res[kNew, j]
-      for(j in 1:kNew+NumY){}
-    }
   }
+  Return = setNames(list(which.max(apply(Res, 1, CH, X)), Res[which.max(apply(Res, 1, CH, X)), ]), c("kNewNum", "cl")) 
+  return(Return)
 }
 
 
+BackstepElinimation<-function(data, Y, max_iter=1000){
+  data = as.data.frame(data)
+  names(data) = c(1:dim(data)[2])
+  p = dim(data)[2]
+  n=dim(data)[1]
+  data_eliminated = data
+  for(num in 1:p){
+    CL = matrix(0, choose(dim(data[1]), num), dim(data)[2])
+    ic = c(  rep(0, choose(dim(data[1]),num) ))
+    VariableNum = dim(data_eliminated)[2]
+    for(i in 1: (VariableNum-num+1) ){
+      X = subset(data, select = -i)
+      X = onehot(X)
+      CL[i,] = chooseK(X, Y)[[2]] # clustering when eliminate the pth variable
+      ic[i] = IC(CL[i, ], X)
+    }
+    if(max(ic)<IC(chooseK(onehot(data), Y)[[2]], onehot(data))) break
+    else{data_eliminated = subset(data_eliminated, select = -which.max(ic))} # eleminate the useless variable
+  }
+  data_eliminated = as.data.frame(data_eliminated)
+  names(data_eliminated) = c(1:dim(data_eliminated)[2])
+  return(data_eliminated)
+}
 
+ForwardstepFinetune<-function(data, data_eliminated, Y, max_iter = 1000){
+  if(dim(data)[2] == dim(data_eliminated)[2]){return(data_eliminated)}
+  else{
+    # Step1: find the variable elinimated
+    VariableElinimated  = c(setdiff(names(data), names(data_eliminated)))
+    
+    # step2: rbind the variable elinimated and put it on the final cols
+    data_CoverVariableElinimated = rbind(data_eliminated, data[,VariableElinimated])
+    
+    # step3: calculate the number of indication variable after one-hot embedding the variable elinimated
+    maxNumofIndicationElinimate = dim(onehot(data[,VariableElinimated]))[2]
+    
+    # Step4: forwardstep Finetune
+    X = onehot(data)
+    for( num in 1:maxNumofIndicationElinimate){
+      # num is the total number of indication variables would be elinimated
+      CL = matrix(0, choose(dim(data[1]), num), dim(data)[2])
+      ic = c(  rep(0, choose(dim(data[1]),num) ))
+      
+      for(i in 1:(maxNumofIndicationElinimate-num+1)){
+        idx = dim(data)[2]-i+1
+        X = subset(X, select = -idx)
+        CL[i,] = chooseK(X, Y)[[2]] # clustering when eliminate the pth variable
+        ic[i] = IC(CL[i, ], X)
+      }
+      
+      if(max(ic)<IC(chooseK(onehot(data), Y)[[2]], onehot(data))) break
+      else{X = subset(X, select = -max(ic))}
+    }
+  }
+  return(list(X), CL[which.max, ])
+}
 
-
-
-
+main<-function(data, Y, max_iter=1000){
+  data_eliminated =   BackstepElinimation(data, Y, max_iter)
+  Res = ForwardstepFinetune(data, data_eliminated, Y, max_iter)
+}
 

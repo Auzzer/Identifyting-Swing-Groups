@@ -1,0 +1,20 @@
+# 1. kmodespp 
+Step1: 
+1.1 center = matrix()_{p*k}, where the last m (the number of known categories) lines       are the centers of initial categories
+
+1.2 For ith observation, calculate the distance: Dis[i]=sum(dist(X[i, ], center[j, ]),  where dist is defined as: sum(abs(a-b)), a, b are two vectors
+getIdx: idx = Rank(Dis)[ceiling(0.75*length(Dis)]
+X[idx, ] = center[m-1,]
+Repeat 1.2 for (k-m) times until the matrix if fulfilled
+
+Step2:
+For n observations, calculate the distance between points and different centers, then put the points to the nearest points
+
+Step3: calculate the new center of each clustering
+
+Step4: if center moves, repeat step 2-4 until center anchors
+
+# 2.  For the variables selected, run kmodespp where k ranges from origin to origin + length(variable_sleected)
+ Calculate 
+
+  
